@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QueueFlow — Admin Dashboard</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <link rel="stylesheet" href="css/admin-dashboard.css">
+</head>
+<body>
+
+  <nav class="dash-nav admin-nav">
+    <div class="nav-left">
+      <a class="brand" href="index.html">QueueFlow</a>
+      <span class="nav-tag admin-tag">Admin Panel</span>
+    </div>
+    <div class="nav-right">
+      <div class="user-badge" id="adminBadge">Loading...</div>
+      <button class="btn-logout" onclick="logoutAdmin()">Logout</button>
+    </div>
+  </nav>
+
+  <div class="dash-layout">
+
+    <aside class="sidebar admin-sidebar">
+      <ul class="sidebar-menu">
+        <li class="active" onclick="showSection('overview', this)">Dashboard</li>
+        <li onclick="showSection('queue', this)">Queue Management</li>
+        <li onclick="showSection('notifications', this)">Notifications</li>
+        <li onclick="showSection('settings', this)">Settings</li>
+      </ul>
+      <div class="sidebar-danger">
+        <button onclick="resetQueue()">Reset Queue</button>
+      </div>
+    </aside>
+
+    <main class="dash-content">
+
+      <!-- OVERVIEW -->
+      <section id="sec-overview" class="dash-section active">
+        <div class="section-header">
+          <h2>Dashboard Overview</h2>
+          <p>Live stats across all services</p>
+        </div>
+        <div class="stats-grid">
+          <div class="stat-card blue"><div class="s-label">Active Tokens</div><div class="s-val" id="statActive">0</div></div>
+          <div class="stat-card purple"><div class="s-label">Now Serving</div><div class="s-val" id="statServing">—</div></div>
+          <div class="stat-card pink"><div class="s-label">Waiting</div><div class="s-val" id="statWaiting">0</div></div>
+          <div class="stat-card green"><div class="s-label">Completed Today</div><div class="s-val" id="statDone">0</div></div>
+        </div>
+        <div class="service-overview" id="serviceOverview"></div>
+      </section>
+
+      <!-- QUEUE MANAGEMENT -->
+      <section id="sec-queue" class="dash-section">
+        <div class="section-header">
+          <h2>Queue Management</h2>
+          <p>Control the live queue for your assigned service</p>
+        </div>
+        <div class="queue-controls">
+          <div class="control-btns">
+            <button class="btn-ctrl green" onclick="callNext()">Call Next</button>
+            <button class="btn-ctrl orange" onclick="skipCurrent()">Skip</button>
+            <button class="btn-ctrl blue" onclick="completeCurrent()">Complete</button>
+          </div>
+        </div>
+        <div class="current-serving-banner" id="currentServingBanner">
+          Now Serving: <strong id="adminCurrentToken">—</strong>
+        </div>
+        <div class="queue-table-wrap">
+          <table class="queue-table">
+            <thead><tr><th>Token</th><th>Customer</th><th>Time</th><th>Status</th><th>Action</th></tr></thead>
+            <tbody id="adminQueueBody"><tr><td colspan="5" class="no-data">Loading queue...</td></tr></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- NOTIFICATIONS -->
+      <section id="sec-notifications" class="dash-section">
+        <div class="section-header">
+          <h2>Notifications</h2>
+          <p>Send alerts to customers</p>
+        </div>
+        <div class="notif-box">
+          <div class="form-group-admin">
+            <label>Target Token (leave blank for broadcast)</label>
+            <input type="text" id="notifToken" placeholder="e.g. D12 or leave empty">
+          </div>
+          <div class="form-group-admin">
+            <label>Message</label>
+            <textarea id="notifMessage" rows="3" placeholder="e.g. Lunch break 1–2 PM, Counter closed, etc."></textarea>
+          </div>
+          <div class="quick-msgs">
+            <span onclick="setQuickMsg('Counter temporarily closed')">Counter Closed</span>
+            <span onclick="setQuickMsg('Lunch break: 1 PM - 2 PM')">Lunch Break</span>
+            <span onclick="setQuickMsg('Please proceed to the counter now')">Proceed Now</span>
+            <span onclick="setQuickMsg('Please wait, slight delay expected')">Slight Delay</span>
+          </div>
+          <button class="btn-ctrl blue" onclick="sendNotification()">Send Notification</button>
+          <div id="notifLog" class="notif-log"></div>
+        </div>
+      </section>
+
+      <!-- SETTINGS -->
+      <section id="sec-settings" class="dash-section">
+        <div class="section-header">
+          <h2>Settings</h2>
+          <p>Admin preferences and controls</p>
+        </div>
+        <div class="settings-card">
+          <h4>Admin Info</h4>
+          <div class="profile-row"><label>Name</label><span id="aName">—</span></div>
+          <div class="profile-row"><label>Admin ID</label><span id="aAdminId">—</span></div>
+          <div class="profile-row"><label>Email</label><span id="aEmail">—</span></div>
+          <div class="profile-row"><label>Queue Assigned</label><span id="aQueue">—</span></div>
+        </div>
+        <div class="settings-card danger-zone">
+          <h4>Danger Zone</h4>
+          <p>Permanently reset today's queue data for a specific service.</p>
+          <select id="resetServiceSelect">
+            <option value="">— Select Service to Reset —</option>
+            <option value="doctor">Doctor</option>
+            <option value="bank">Bank</option>
+            <option value="billing">Billing</option>
+            <option value="enquiry">Enquiry</option>
+            <option value="pharmacy">Pharmacy</option>
+            <option value="support">Support</option>
+          </select>
+          <button class="btn-ctrl red" onclick="resetSpecificQueue()">Reset Selected Queue</button>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/admin-dashboard.js"></script>
+</body>
+</html>
